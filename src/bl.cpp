@@ -38,6 +38,7 @@
 #include "logo_medium.h"
 #include "loading.h"
 #include <wifi-helpers.h>
+#include <temp_sensor.h>
 
 bool pref_clear = false;
 String new_filename = "";
@@ -369,6 +370,8 @@ void bl_init(void)
   // OTA checking, image checking and drawing
   https_request_err_e request_result = downloadAndShow();
   Log.info("%s [%d]: request result - %d\r\n", __FILE__, __LINE__, request_result);
+
+  temp_sensor_read_and_submit();
 
   if (request_result == HTTPS_IMAGE_FILE_TOO_BIG)
   {
