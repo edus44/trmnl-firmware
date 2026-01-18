@@ -15,32 +15,35 @@
 #define TEMP_SENSOR_ADDR 0x44
 #define SHT40_CMD_MEASURE 0xFD
 
-#define HA_BASE_URL "http://192.168.1.221:8123/api/states/sensor."
+#define HA_URL "http://192.168.1.221:8123/api/states/sensor.miterm"
 #define HA_BEARER_TOKEN "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyN2RjMWI4ZDRjZDM0NDUyYjE0ZWNiOTNiNjQyOTYxZSIsImlhdCI6MTc2ODc1NjA4OCwiZXhwIjoyMDg0MTE2MDg4fQ.6ybVWxzxXaeo289qmuBFQT_yJmiYjVOCWIKnSkSWtd8"
 
 static bool initialized = false;
 
-static void submitToHomeAssistant(const char* sensorName, float value) {
-    String url = String(HA_BASE_URL) + sensorName;
-    
+static void submitToHomeAssistant(float battery, float temperature, float humidity, bool hasSensorData) {
     JsonDocument doc;
-    doc["state"] = value;
+    doc["state"] = battery;
+    JsonObject attrs = doc["attributes"].to<JsonObject>();
+    if (hasSensorData) {
+        attrs["temperature"] = temperature;
+        attrs["humidity"] = humidity;
+    }
     String payload;
     serializeJson(doc, payload);
 
-    withHttp(url.c_str(), [&](HTTPClient *http, HttpError err) -> bool {
+    withHttp(HA_URL, [&](HTTPClient *http, HttpError err) -> bool {
         if (err != HTTPCLIENT_SUCCESS || !http) {
-            Log_error("HA HTTP connect failed for %s", sensorName);
+            Log_error("HA HTTP connect failed");
             return false;
         }
         http->addHeader("Content-Type", "application/json");
         http->addHeader("Authorization", "Bearer " HA_BEARER_TOKEN);
         int code = http->POST(payload);
         if (code < 0) {
-            Log_error("HA POST failed for %s: %d", sensorName, code);
+            Log_error("HA POST failed: %d", code);
             return false;
         }
-        Log_info("HA %s sent (%.2f), HTTP %d", sensorName, value, code);
+        Log_info("HA sent (bat=%.2f, temp=%.2f, hum=%.2f), HTTP %d", battery, temperature, humidity, code);
         return true;
     });
 }
@@ -118,11 +121,7 @@ void temp_sensor_read_and_submit(void) {
     Log_info("Battery: %.2f%%", battery * 100);
 
     // Submit to Home Assistant
-    if (sensorOk) {
-        submitToHomeAssistant("miterm_temperature", temp);
-        submitToHomeAssistant("miterm_humidity", hum);
-    }
-    submitToHomeAssistant("miterm_battery", battery);
+    submitToHomeAssistant(battery, temp, hum, sensorOk);
 }
 
 #else
