@@ -14,9 +14,36 @@
 #define I2C_SCL_PIN 20
 #define TEMP_SENSOR_ADDR 0x44
 #define SHT40_CMD_MEASURE 0xFD
-#define SENSOR_DATA_URL "http://192.168.1.221:2301"
+
+#define HA_BASE_URL "http://192.168.1.221:8123/api/states/sensor."
+#define HA_BEARER_TOKEN "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyN2RjMWI4ZDRjZDM0NDUyYjE0ZWNiOTNiNjQyOTYxZSIsImlhdCI6MTc2ODc1NjA4OCwiZXhwIjoyMDg0MTE2MDg4fQ.6ybVWxzxXaeo289qmuBFQT_yJmiYjVOCWIKnSkSWtd8"
 
 static bool initialized = false;
+
+static void submitToHomeAssistant(const char* sensorName, float value) {
+    String url = String(HA_BASE_URL) + sensorName;
+    
+    JsonDocument doc;
+    doc["state"] = value;
+    String payload;
+    serializeJson(doc, payload);
+
+    withHttp(url.c_str(), [&](HTTPClient *http, HttpError err) -> bool {
+        if (err != HTTPCLIENT_SUCCESS || !http) {
+            Log_error("HA HTTP connect failed for %s", sensorName);
+            return false;
+        }
+        http->addHeader("Content-Type", "application/json");
+        http->addHeader("Authorization", "Bearer " HA_BEARER_TOKEN);
+        int code = http->POST(payload);
+        if (code < 0) {
+            Log_error("HA POST failed for %s: %d", sensorName, code);
+            return false;
+        }
+        Log_info("HA %s sent (%.2f), HTTP %d", sensorName, value, code);
+        return true;
+    });
+}
 
 static uint8_t crc8(const uint8_t *data, int len) {
     uint8_t crc = 0xFF;
@@ -88,36 +115,14 @@ void temp_sensor_read_and_submit(void) {
 
     // Read battery
     float battery = readBattery();
-    Log_info("Battery: %.2fV", battery);
+    Log_info("Battery: %.2f%%", battery * 100);
 
-    // Submit via HTTP
-    JsonDocument doc;
+    // Submit to Home Assistant
     if (sensorOk) {
-        doc["temperature"] = temp;
-        doc["humidity"] = hum;
-    } else {
-        doc["temperature"] = nullptr;
-        doc["humidity"] = nullptr;
+        submitToHomeAssistant("miterm_temperature", temp);
+        submitToHomeAssistant("miterm_humidity", hum);
     }
-    doc["battery"] = battery;
-    doc["mac"] = WiFi.macAddress();
-    String payload;
-    serializeJson(doc, payload);
-
-    withHttp(SENSOR_DATA_URL, [&](HTTPClient *http, HttpError err) -> bool {
-        if (err != HTTPCLIENT_SUCCESS || !http) {
-            Log_error("Sensor HTTP connect failed");
-            return false;
-        }
-        http->addHeader("Content-Type", "application/json");
-        int code = http->POST(payload);
-        if (code < 0) {
-            Log_error("Sensor POST failed: %d", code);
-            return false;
-        }
-        Log_info("Sensor data sent, HTTP %d", code);
-        return true;
-    });
+    submitToHomeAssistant("miterm_battery", battery);
 }
 
 #else
