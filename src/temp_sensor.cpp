@@ -92,8 +92,13 @@ void temp_sensor_read_and_submit(void) {
 
     // Submit via HTTP
     JsonDocument doc;
-    doc["temperature"] = sensorOk ? temp : nullptr;
-    doc["humidity"] = sensorOk ? hum : nullptr;
+    if (sensorOk) {
+        doc["temperature"] = temp;
+        doc["humidity"] = hum;
+    } else {
+        doc["temperature"] = nullptr;
+        doc["humidity"] = nullptr;
+    }
     doc["battery"] = battery;
     doc["mac"] = WiFi.macAddress();
     String payload;

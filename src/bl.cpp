@@ -367,11 +367,12 @@ void bl_init(void)
 
   log_retry = true;
 
+  temp_sensor_read_and_submit();
+
   // OTA checking, image checking and drawing
   https_request_err_e request_result = downloadAndShow();
   Log.info("%s [%d]: request result - %d\r\n", __FILE__, __LINE__, request_result);
 
-  temp_sensor_read_and_submit();
 
   if (request_result == HTTPS_IMAGE_FILE_TOO_BIG)
   {
