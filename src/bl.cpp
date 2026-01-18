@@ -367,8 +367,6 @@ void bl_init(void)
 
   log_retry = true;
 
-  temp_sensor_read_and_submit();
-
   // OTA checking, image checking and drawing
   https_request_err_e request_result = downloadAndShow();
   Log.info("%s [%d]: request result - %d\r\n", __FILE__, __LINE__, request_result);
@@ -585,6 +583,12 @@ ApiDisplayInputs loadApiDisplayInputs(Preferences &preferences)
   inputs.displayHeight = display_height();
   inputs.model = DEVICE_MODEL;
   inputs.specialFunction = special_function;
+
+  // Read temperature and humidity sensor
+  TempSensorData sensorData = temp_sensor_read();
+  inputs.temperature = sensorData.temperature;
+  inputs.humidity = sensorData.humidity;
+  inputs.hasSensorData = sensorData.valid;
 
   return inputs;
 }

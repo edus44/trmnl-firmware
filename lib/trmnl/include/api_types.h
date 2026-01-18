@@ -59,6 +59,9 @@ struct ApiDisplayInputs
   int displayWidth;
   int displayHeight;
   SPECIAL_FUNCTION specialFunction;
+  float temperature;
+  float humidity;
+  bool hasSensorData;
 };
 
 typedef struct

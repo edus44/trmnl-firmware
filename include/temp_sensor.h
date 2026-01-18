@@ -1,10 +1,17 @@
 #ifndef TEMP_SENSOR_H
 #define TEMP_SENSOR_H
 
+struct TempSensorData {
+  float temperature;
+  float humidity;
+  bool valid;
+};
+
 /**
- * @brief Read sensor and submit data via HTTP (single entry point)
- * Initializes sensor on first call, reads temperature/humidity, and POSTs to server.
+ * @brief Read temperature and humidity from sensor
+ * Initializes sensor on first call, reads temperature/humidity.
+ * @return TempSensorData with temperature, humidity and valid flag
  */
-void temp_sensor_read_and_submit(void);
+TempSensorData temp_sensor_read(void);
 
 #endif // TEMP_SENSOR_H
