@@ -38,6 +38,7 @@
 #include "logo_medium.h"
 #include "loading.h"
 #include <wifi-helpers.h>
+#include <temp_sensor.h>
 
 bool pref_clear = false;
 String new_filename = "";
@@ -580,6 +581,12 @@ ApiDisplayInputs loadApiDisplayInputs(Preferences &preferences)
   inputs.displayHeight = display_height();
   inputs.model = DEVICE_MODEL;
   inputs.specialFunction = special_function;
+
+  // Read temperature and humidity sensor
+  TempSensorData sensorData = temp_sensor_read();
+  inputs.temperature = sensorData.temperature;
+  inputs.humidity = sensorData.humidity;
+  inputs.hasSensorData = sensorData.valid;
 
   return inputs;
 }

@@ -39,6 +39,12 @@ void addHeaders(HTTPClient &https, ApiDisplayInputs &inputs)
   https.addHeader("Width", String(inputs.displayWidth));
   https.addHeader("Height", String(inputs.displayHeight));
 
+  if (inputs.hasSensorData)
+  {
+    https.addHeader("Sensor-Temperature", String(inputs.temperature));
+    https.addHeader("Sensor-Humidity", String(inputs.humidity));
+  }
+
   if (inputs.specialFunction != SF_NONE)
   {
     Log_info("Add special function: true (%d)", inputs.specialFunction);
