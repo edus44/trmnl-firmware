@@ -83,4 +83,5 @@ const char *ButtonPressResultNames[] = {
     "LongPress",
     "DoubleClick",
     "ShortPress",
-    "SoftReset"};
+    "SoftReset",
+    "NoAction"};
