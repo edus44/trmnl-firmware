@@ -8,16 +8,19 @@
 
 void addSetupHeaders(HTTPClient &https, ApiSetupInputs &inputs)
 {
-  Log_info("Added headers:\n\r"
-           "ID: %s\n\r"
-           "FW-Version: %s\r\n",
-           inputs.macAddress.c_str(),
-           inputs.firmwareVersion.c_str());
-
+  Log_info("--- Request Headers (Setup API) ---");
+  
+  logAddHeader("ID", inputs.macAddress);
   https.addHeader("ID", inputs.macAddress);
+  
+  logAddHeader("Content-Type", "application/json");
   https.addHeader("Content-Type", "application/json");
+  
+  logAddHeader("FW-Version", inputs.firmwareVersion);
   https.addHeader("FW-Version", inputs.firmwareVersion);
-  https.addHeader("Model",inputs.model);
+  
+  logAddHeader("Model", inputs.model);
+  https.addHeader("Model", inputs.model);
 }
 
 ApiSetupResult fetchApiSetup(ApiSetupInputs &apiSetupInputs)
@@ -48,11 +51,20 @@ ApiSetupResult fetchApiSetup(ApiSetupInputs &apiSetupInputs)
         https->setTimeout(15000);
         https->setConnectTimeout(15000);
 
+        // Collect all response headers for logging
+        const char *headerKeys[] = {"Content-Type", "Content-Length", "Location", "X-Request-Id", "Cache-Control", "Date", "Server"};
+        https->collectHeaders(headerKeys, sizeof(headerKeys) / sizeof(headerKeys[0]));
+
+        String requestUrl = apiSetupInputs.baseUrl + "/api/setup";
+        logHttpRequest("GET", requestUrl, *https);
         addSetupHeaders(*https, apiSetupInputs);
 
         delay(5);
 
         int httpCode = https->GET();
+        
+        String payload = https->getString();
+        logHttpResponse(httpCode, *https, payload);
 
         if (httpCode < 0)
         {
@@ -70,10 +82,8 @@ ApiSetupResult fetchApiSetup(ApiSetupInputs &apiSetupInputs)
 
         if (httpCode == HTTP_CODE_OK)
         {
-          String payload = https->getString();
           size_t size = https->getSize();
           Log_info("Content size: %d", size);
-          Log_info("Payload - %s", payload.c_str());
 
           auto apiResponse = parseResponse_apiSetup(payload);
 

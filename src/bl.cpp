@@ -652,12 +652,20 @@ static https_request_err_e downloadAndShow()
         https.setTimeout(15000);
         https.setConnectTimeout(15000);
 
+        // Collect response headers for logging
+        const char *headers[] = {"Content-Type", "Content-Length", "Location", "X-Request-Id", "Cache-Control", "Date", "Server"};
+        https.collectHeaders(headers, sizeof(headers) / sizeof(headers[0]));
+
+        Log_info("--- Request Headers (Image Download) ---");
+        logAddHeader("Accept-Encoding", "identity");
         https.addHeader("Accept-Encoding", "identity"); // Disable compression for raw image data
 
         // Include ID and Access Token if the image is hosted on the same server as the API
         if (strncmp(filename, apiDisplayInputs.baseUrl.c_str(), apiDisplayInputs.baseUrl.length()) == 0)
         {
+          logAddHeader("ID", apiDisplayInputs.macAddress);
           https.addHeader("ID", apiDisplayInputs.macAddress);
+          logAddHeader("Access-Token", apiDisplayInputs.apiKey);
           https.addHeader("Access-Token", apiDisplayInputs.apiKey);
         }
         
@@ -686,22 +694,41 @@ static https_request_err_e downloadAndShow()
             }
           }
 
-          const char *headers[] = {"Content-Type"};
-          https.collectHeaders(headers, 1);
-          Log_info("GET...");
+          logHttpRequest("GET", String(filename), https);
           Log_info("RSSI: %d", WiFi.RSSI());
           // start connection and send HTTP header
           int httpCode = https.GET();
           int content_size = https.getSize();
+          
+          // Log response (without body for images - too large)
+          Log_info("========== HTTP RESPONSE (Image) ==========");
+          Log_info("Status Code: %d (%s)", httpCode, https.errorToString(httpCode).c_str());
+          Log_info("Content-Length: %d", content_size);
+          Log_info("--- Response Headers ---");
+          int headerCount = https.headers();
+          for (int i = 0; i < headerCount; i++)
+          {
+            Log_info("  %s: %s", https.headerName(i).c_str(), https.header(i).c_str());
+          }
+          Log_info("(Response body is binary image data, not logged)");
+          Log_info("=============================================");
+          
           if(httpCode == HTTP_CODE_PERMANENT_REDIRECT ||
             httpCode == HTTP_CODE_TEMPORARY_REDIRECT){
               https.end();
-              https.begin(API_BASE_URL +https.getLocation());
+              String redirectUrl = API_BASE_URL + https.getLocation();
+              https.begin(redirectUrl);
               Log_info("Redirected to: %s", https.getLocation().c_str());
               https.setTimeout(15000);
               https.setConnectTimeout(15000);
+              https.collectHeaders(headers, sizeof(headers) / sizeof(headers[0]));
+              logHttpRequest("GET (redirect)", redirectUrl, https);
               httpCode = https.GET();
               content_size = https.getSize();
+              Log_info("========== HTTP RESPONSE (Image - redirect) ==========");
+              Log_info("Status Code: %d (%s)", httpCode, https.errorToString(httpCode).c_str());
+              Log_info("Content-Length: %d", content_size);
+              Log_info("======================================================");
             }
 //          uint8_t *buffer_old = nullptr; // Disable partial update for now
 //          int file_size_old = 0;
@@ -1669,18 +1696,42 @@ static void downloadSetupImage()
     https->setTimeout(15000);
     https->setConnectTimeout(15000);
 
+    // Collect response headers for logging
+    const char *headerKeys[] = {"Content-Type", "Content-Length", "Location", "X-Request-Id", "Date", "Server"};
+    https->collectHeaders(headerKeys, sizeof(headerKeys) / sizeof(headerKeys[0]));
+
+    logHttpRequest("GET", String(filename), *https);
     Log.info("%s [%d]: [HTTPS] Request to %s\r\n", __FILE__, __LINE__, filename);
-    Log.info("%s [%d]: [HTTPS] GET..\r\n", __FILE__, __LINE__);
 
     int httpCode = https->GET();
+    
+    // Log response (without body for images)
+    Log_info("========== HTTP RESPONSE (Setup Image) ==========");
+    Log_info("Status Code: %d (%s)", httpCode, https->errorToString(httpCode).c_str());
+    Log_info("Content-Length: %d", https->getSize());
+    Log_info("--- Response Headers ---");
+    int headerCount = https->headers();
+    for (int i = 0; i < headerCount; i++)
+    {
+      Log_info("  %s: %s", https->headerName(i).c_str(), https->header(i).c_str());
+    }
+    Log_info("(Response body is binary image data, not logged)");
+    Log_info("==================================================");
 
     if(httpCode == HTTP_CODE_PERMANENT_REDIRECT ||httpCode == HTTP_CODE_TEMPORARY_REDIRECT){
               https->end();
-              https->begin(https->getLocation());
+              String redirectUrl = https->getLocation();
+              https->begin(redirectUrl);
               Log_info("Redirected to: %s", https->getLocation().c_str());
               https->setTimeout(15000);
               https->setConnectTimeout(15000);
+              https->collectHeaders(headerKeys, sizeof(headerKeys) / sizeof(headerKeys[0]));
+              logHttpRequest("GET (redirect)", redirectUrl, *https);
               httpCode = https->GET();
+              Log_info("========== HTTP RESPONSE (Setup Image - redirect) ==========");
+              Log_info("Status Code: %d (%s)", httpCode, https->errorToString(httpCode).c_str());
+              Log_info("Content-Length: %d", https->getSize());
+              Log_info("=============================================================");
             }
 
     // httpCode will be negative on error
